@@ -1,4 +1,14 @@
 services:
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: boltuser
+      POSTGRES_PASSWORD: boltpassword
+      POSTGRES_DB: bolt_diy_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
   app-prod:
     image: bolt-ai:production
     build:
@@ -90,3 +100,6 @@ services:
     command: pnpm run dockerstart
     profiles:
       - prebuilt
+
+volumes:
+  postgres_data:

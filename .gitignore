@@ -33,6 +33,17 @@ functions/build/
 .wrangler
 _worker.bundle
 
+# Environment-specific files
+.env
+.env.*
+!/.env.example
+
+# SSL keys
+*.pem
+
+# Database dumps
+db_dumps/
+
 Modelfile
 modelfiles
 
