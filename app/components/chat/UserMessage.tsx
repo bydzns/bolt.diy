@@ -2,6 +2,7 @@
  * @ts-nocheck
  * Preventing TS checks with files presented in the video for a better presentation.
  */
+import { memo, useMemo } from 'react'; // Added memo and useMemo
 import { MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
 import { Markdown } from './Markdown';
 import { useStore } from '@nanostores/react';
@@ -11,13 +12,20 @@ interface UserMessageProps {
   content: string | Array<{ type: string; text?: string; image?: string }>;
 }
 
-export function UserMessage({ content }: UserMessageProps) {
-  if (Array.isArray(content)) {
-    const textItem = content.find((item) => item.type === 'text');
-    const textContent = stripMetadata(textItem?.text || '');
-    const images = content.filter((item) => item.type === 'image' && item.image);
-    const profile = useStore(profileStore);
+export const UserMessage = memo(({ content }: UserMessageProps) => {
+  const profile = useStore(profileStore);
 
+  const { textContent, images } = useMemo(() => {
+    if (Array.isArray(content)) {
+      const textItem = content.find((item) => item.type === 'text');
+      const imagesArray = content.filter((item) => item.type === 'image' && item.image);
+      return { textContent: stripMetadata(textItem?.text || ''), images: imagesArray };
+    }
+    return { textContent: stripMetadata(content), images: [] };
+  }, [content]);
+
+  if (Array.isArray(content) && images.length > 0) {
+    // Render layout with images if content was an array and had images
     return (
       <div className="overflow-hidden flex flex-col gap-3 items-center ">
         <div className="flex flex-row items-start justify-center overflow-hidden shrink-0 self-start">
@@ -54,14 +62,13 @@ export function UserMessage({ content }: UserMessageProps) {
     );
   }
 
-  const textContent = stripMetadata(content);
-
+  // Default rendering for text-only content (or if content was initially a string)
   return (
     <div className="overflow-hidden pt-[4px]">
-      <Markdown html>{textContent}</Markdown>
+      <Markdown html>{textContent}</Markdown> {/* textContent is already memoized and stripped */}
     </div>
   );
-}
+});
 
 function stripMetadata(content: string) {
   const artifactRegex = /<boltArtifact\s+[^>]*>[\s\S]*?<\/boltArtifact>/gm;

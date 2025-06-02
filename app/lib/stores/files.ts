@@ -68,6 +68,10 @@ export class FilesStore {
    * Map of files that matches the state of WebContainer.
    */
   files: MapStore<FileMap> = import.meta.hot?.data.files ?? map({});
+  
+  #observer: MutationObserver | null = null;
+  #reloadIntervalId: ReturnType<typeof setInterval> | null = null;
+
 
   get filesCount() {
     return this.#size;
@@ -108,9 +112,8 @@ export class FilesStore {
       let lastChatId = getCurrentChatId();
 
       // Use MutationObserver to detect URL changes (for SPA navigation)
-      const observer = new MutationObserver(() => {
+      this.#observer = new MutationObserver(() => {
         const currentChatId = getCurrentChatId();
-
         if (currentChatId !== lastChatId) {
           logger.info(`Chat ID changed from ${lastChatId} to ${currentChatId}, reloading locks`);
           lastChatId = currentChatId;
@@ -118,10 +121,21 @@ export class FilesStore {
         }
       });
 
-      observer.observe(document, { subtree: true, childList: true });
+      this.#observer.observe(document, { subtree: true, childList: true });
     }
 
     this.#init();
+  }
+
+  dispose() {
+    if (this.#observer) {
+      this.#observer.disconnect();
+      logger.info('MutationObserver disconnected');
+    }
+    if (this.#reloadIntervalId) {
+      clearInterval(this.#reloadIntervalId);
+      logger.info('Lock reload interval cleared');
+    }
   }
 
   /**
@@ -622,7 +636,7 @@ export class FilesStore {
      * Set up a less frequent periodic check to ensure locks remain applied.
      * This is now less critical since we have the storage event listener.
      */
-    setInterval(() => {
+    this.#reloadIntervalId = setInterval(() => {
       // Clear the cache to force a fresh read from localStorage
       clearCache();
 

@@ -1,8 +1,9 @@
 import { useStore } from '@nanostores/react';
-import type { LinksFunction } from '@remix-run/cloudflare';
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
+import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/node'; // Changed to node
+import { Form, Links, Meta, Outlet, Scripts, ScrollRestoration, json, useLoaderData } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
+import { getCurrentUser, type JWTPayload } from './lib/user.server'; // Adjust path as needed
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
@@ -65,7 +66,15 @@ export const Head = createHead(() => (
   </>
 ));
 
-export function Layout({ children }: { children: React.ReactNode }) {
+// Define User type based on JWTPayload for clarity
+export type User = JWTPayload;
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const user = await getCurrentUser(request);
+  return json({ user });
+}
+
+export function Layout({ children, user }: { children: React.ReactNode; user: User | null }) {
   const theme = useStore(themeStore);
 
   useEffect(() => {
@@ -74,6 +83,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {/* Basic Header for User Info and Logout */}
+      <header className="p-4 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100">
+        <div className="container mx-auto flex justify-between items-center">
+          <div>{/* Potentially a logo or site title here */}</div>
+          <div>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span>Welcome, {user.email}</span>
+                <Form method="post" action="/api/auth">
+                  <input type="hidden" name="_action" value="logout" />
+                  <button type="submit" className="text-blue-500 hover:underline">Logout</button>
+                </Form>
+              </div>
+            ) : (
+              <a href="/auth" className="text-blue-500 hover:underline">Login/Sign Up</a>
+            )}
+          </div>
+        </div>
+      </header>
+
       <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>
       <ScrollRestoration />
       <Scripts />
@@ -84,6 +113,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 import { logStore } from './lib/stores/logs';
 
 export default function App() {
+  const { user } = useLoaderData<typeof loader>();
   const theme = useStore(themeStore);
 
   useEffect(() => {
@@ -92,11 +122,12 @@ export default function App() {
       platform: navigator.platform,
       userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(),
+      authenticated: !!user,
     });
-  }, []);
+  }, [user]); // Added user to dependency array
 
   return (
-    <Layout>
+    <Layout user={user}>
       <Outlet />
     </Layout>
   );

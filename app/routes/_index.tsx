@@ -1,6 +1,7 @@
-import { json, type MetaFunction } from '@remix-run/cloudflare';
+import { json, redirect, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/cloudflare';
 import { ClientOnly } from 'remix-utils/client-only';
 import { BaseChat } from '~/components/chat/BaseChat';
+import { getCurrentUser } from '~/lib/user.server'; // Import for auth
 import { Chat } from '~/components/chat/Chat.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
@@ -9,7 +10,15 @@ export const meta: MetaFunction = () => {
   return [{ title: 'Bolt' }, { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' }];
 };
 
-export const loader = () => json({});
+export async function loader({ request }: LoaderFunctionArgs) {
+  const user = await getCurrentUser(request);
+  if (!user) {
+    // If no user, redirect to the authentication page
+    return redirect('/auth');
+  }
+  // If user exists, return user data (or any other data needed for the page)
+  return json({ user });
+}
 
 /**
  * Landing page component for Bolt
